@@ -1,0 +1,100 @@
+﻿@page "/"
+@using SoccerPlayerCatalog.DAL.Entities
+@using SoccerPlayerCatalog.Modules.SoccerPlayerModule
+@using SoccerPlayerCatalog.Modules.SoccerPlayerModule
+@using SoccerPlayerCatalog.DAL
+@using Microsoft.AspNetCore.SignalR.Client
+
+<PageTitle>Добавление футболиста</PageTitle>
+
+<h1>Добавление футболиста</h1>
+
+<div class="form-container add-player-page">
+    @if (Error.Is)
+    {
+    <div>Ошибка: @Error.Message</div>
+    }
+    <div>
+        <label>Имя:</label>
+        <input class="input-field" @bind="newSoccerPlayer.Firstname"/>
+    </div>
+    <div>
+        <label>Фамилия:</label>
+        <input class="input-field" @bind="newSoccerPlayer.Surname"/>
+    </div>
+    <div>
+        <label>Пол:</label>
+        <input class="input-field" @bind="newSoccerPlayer.Gender"/>
+    </div>
+    <div>
+        <label>Дата рождения:</label>
+        <input class="input-field" type="date" @bind="newSoccerPlayer.BirthDate"/>
+    </div>
+    <div>
+        <label>Команда:</label>
+        <input class="input-field" list="teams" @bind="newSoccerPlayer.Team" placeholder="Выберите или введите"/>
+        <datalist id="teams">
+            @foreach (var team in teams)
+            {
+            <option value="@team"/>
+            }
+        </datalist>
+        <button class="btn" type="button" @onclick="AddTeam">Добавить новую команду</button>
+    </div>
+    <div>
+        <label>Страна:</label>
+        <select class="input-field" @bind="newSoccerPlayer.Country">
+            @foreach (var country in Enum.GetValues<Country.CountryEnum>())
+            {
+            <option value="@country">@Country.TranslateCountry(country.ToString())</option>
+            }
+        </select>
+    </div>
+    <button class="btn" @onclick="AddSoccerPlayerAsync">Добавить</button>
+</div>
+
+
+@inject ISoccerPlayerService service
+
+@code {
+
+    private SoccerPlayerEntity newSoccerPlayer = new()
+    {
+        BirthDate = DateTime.Today
+    };
+
+    private List<string> teams = new();
+    private (bool Is, string Message) Error = (false, "");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            teams = await service.GetTeamsAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = (true, $"Не удалось загрузить команды: {ex.Message}");
+        }
+    }
+
+    private async Task AddSoccerPlayerAsync()
+    {
+        try
+        {
+            await service.AddSoccerPlayerAsync(newSoccerPlayer);
+            newSoccerPlayer = new();
+            Error = (false, "");
+        }
+        catch (Exception ex)
+        {
+            Error = (true, ex.Message);
+        }
+    }
+
+    private void AddTeam()
+    {
+        if (!string.IsNullOrWhiteSpace(newSoccerPlayer.Team) && !teams.Contains(newSoccerPlayer.Team))
+            teams.Add(newSoccerPlayer.Team);
+    }
+}

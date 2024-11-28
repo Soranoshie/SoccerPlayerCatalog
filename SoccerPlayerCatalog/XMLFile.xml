@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SoccerPlayerCatalog</name>
+    </assembly>
+    <members>
+        <member name="T:SoccerPlayerCatalog.Modules.SoccerPlayerModule.SoccerPlayerController">
+            <summary>
+                Контроллер для управления футболистов
+            </summary>
+        </member>
+        <member name="M:SoccerPlayerCatalog.Modules.SoccerPlayerModule.SoccerPlayerController.GetSoccerPlayers">
+            <summary>
+                Получить всех футболистов
+            </summary>
+            <returns>Список футболистов</returns>
+        </member>
+        <member name="M:SoccerPlayerCatalog.Modules.SoccerPlayerModule.SoccerPlayerController.GetSoccerPlayer(System.Guid)">
+            <summary>
+                Получить футболиста по id
+            </summary>
+            <param name="id">id футболиста</param>
+            <returns>Данные футболиста</returns>
+        </member>
+        <member name="M:SoccerPlayerCatalog.Modules.SoccerPlayerModule.SoccerPlayerController.DeleteSoccerPlayer(System.Guid)">
+            <summary>
+                Удалить футболистов по id
+            </summary>
+            <param name="id">id футболиста</param>
+            <returns>Результат удаления</returns>
+        </member>
+        <member name="M:SoccerPlayerCatalog.Modules.SoccerPlayerModule.SoccerPlayerController.CreateOrUpdateSoccerPlayer(SoccerPlayerCatalog.DAL.Entities.SoccerPlayerEntity)">
+            <summary>
+                Создание или обновление футболиста
+            </summary>
+            <param name="soccerPlayer">Объект футболиста</param>
+            <returns>Данные созданного или обновленного футболиста</returns>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,184 @@
+﻿@page "/all"
+@using Microsoft.AspNetCore.SignalR.Client;
+@using SoccerPlayerCatalog.DAL.Entities
+@using SoccerPlayerCatalog.Modules.SoccerPlayerModule
+@inject ISoccerPlayerService service;
+
+<PageTitle>Список футболистов</PageTitle>
+
+<h1>Список футболистов</h1>
+
+<div class="form-container">
+    @if (Error.Is)
+    {
+    <div>Ошибка: @Error.Message</div>
+    }
+    @if (soccerPlayers == null)
+    {
+    <p>
+        <em>Футболисты не найдены</em>
+    </p>
+    }
+    else
+    {
+    <table class="table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Имя</th>
+            <th>Фамилия</th>
+            <th>Пол</th>
+            <th>Дата рождения</th>
+            <th>Команда</th>
+            <th>Страна</th>
+            <th>Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var soccerPlayer in soccerPlayers)
+        {
+        <tr>
+            <td>@soccerPlayer.Id</td>
+            @if (soccerPlayer.IsEditable)
+            {
+            <td>
+                <input class="input-field" @bind="@soccerPlayer.Firstname"/>
+            </td>
+            <td>
+                <input class="input-field" @bind="@soccerPlayer.Surname"/>
+            </td>
+            <td>
+                <input class="input-field" @bind="@soccerPlayer.Gender"/>
+            </td>
+            <td>
+                <input class="input-field" type="date" @bind="@soccerPlayer.BirthDate"/>
+            </td>
+            <td>
+                <input class="input-field" list="teamSuggestions" @bind="@soccerPlayer.Team"/>
+                <datalist id="teamSuggestions">
+                    @foreach (var team in teams)
+                    {
+                    <option value="@team"/>
+                    }
+                </datalist>
+            </td>
+            <td>
+                <select class="input-field" @bind="@soccerPlayer.Country">
+                    @foreach (var country in countries)
+                    {
+                        <option value="@country">@country</option>
+                    }
+                </select>
+            </td>
+            }
+            else
+            {
+            <td>@soccerPlayer.Firstname</td>
+            <td>@soccerPlayer.Surname</td>
+            <td>@soccerPlayer.Gender</td>
+            <td>@soccerPlayer.BirthDate.ToShortDateString()</td>
+            <td>@soccerPlayer.Team</td>
+            <td>@Country.TranslateCountry(soccerPlayer.Country.ToString())</td>
+            }
+            <td>
+                @if (!soccerPlayer.IsEditable)
+                {
+                <button class="btn" @onclick="() => EditSoccerPlayer(soccerPlayer)">Редактировать</button>
+                }
+                else
+                {
+                <button class="btn" @onclick="async () => await UpdateSoccerPlayerAsync(soccerPlayer)">Сохранить</button>
+                }
+            </td>
+        </tr>
+        }
+        </tbody>
+    </table>
+    }
+</div>
+
+@code {
+    private (bool Is, string Message) Error = (false, "");
+    private List<SoccerPlayerEntity> soccerPlayers;
+    private List<string> teams;
+    private List<string> countries;
+    private HubConnection hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await service.GetSoccerPlayersData();
+            soccerPlayers = result?.ToList() ?? new List<SoccerPlayerEntity>();
+            teams = await service.GetTeamsAsync();
+            countries = Enum.GetNames(typeof(Country.CountryEnum)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Error = (true, $"Ошибка при загрузке данных: {ex.Message}");
+        }
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("https://localhost:7001/hub", options =>
+            {
+                options.HttpMessageHandlerFactory = handler =>
+                {
+                    if (handler is HttpClientHandler clientHandler)
+                    {
+                        clientHandler.ServerCertificateCustomValidationCallback =
+                            (message, cert, chain, errors) => true;
+                    }
+
+                    return handler;
+                };
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<List<SoccerPlayerEntity>>("UpdateList", UpdateSoccerPlayers);
+        await hubConnection.StartAsync();
+    }
+
+    private void UpdateSoccerPlayers(List<SoccerPlayerEntity> updatedSoccerPlayers)
+    {
+        soccerPlayers = updatedSoccerPlayers;
+        StateHasChanged();
+    }
+
+    private void EditSoccerPlayer(SoccerPlayerEntity soccerPlayer)
+    {
+        soccerPlayer.IsEditable = true;
+    }
+
+    private async Task UpdateSoccerPlayerAsync(SoccerPlayerEntity soccerPlayer)
+    {
+        if (!IsValidSoccerPlayer(soccerPlayer, out var error))
+        {
+            Error = (true, error);
+            return;
+        }
+
+        soccerPlayer.IsEditable = false;
+        await service.CreateOrUpdateSoccerPlayer(soccerPlayer);
+        await hubConnection.SendAsync("UpdateList", soccerPlayers);
+        Error = (false, "");
+    }
+
+    private bool IsValidSoccerPlayer(SoccerPlayerEntity soccerPlayer, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(soccerPlayer.Firstname))
+        {
+            error = "Имя не может быть пустым";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(soccerPlayer.Surname))
+        {
+            error = "Фамилия не может быть пустой";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
+}
